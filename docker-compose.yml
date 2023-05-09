@@ -1,0 +1,62 @@
+﻿services:
+  producer:
+    image: producer
+    build:
+      context: .
+      dockerfile: Producer/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    ports:
+      - 5002:5002
+    volumes:
+      - "/app/Producer/bin"
+      - "/app/Producer/obj"
+      - "./Producer/:/app/Producer"
+    depends_on:
+      - broker
+  
+  consumer:
+    image: consumer
+    build:
+      context: .
+      dockerfile: Consumer/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    volumes:
+      - "/app/Consumer/bin"
+      - "/app/Consumer/obj"
+      - "./Consumer/:/app/Consumer"
+    depends_on:
+      - broker
+  
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.2
+    restart: always
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOO_SERVERS: server.1=0.0.0.0:2888:3888;2181
+
+  kafdrop:
+    image: obsidiandynamics/kafdrop:latest
+    depends_on:
+      - broker
+    ports:
+      - 19000:9000
+    environment:
+      KAFKA_BROKERCONNECT: broker:29092
+
+  broker:
+    image: confluentinc/cp-kafka:7.3.2
+    container_name: broker
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 7500
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
